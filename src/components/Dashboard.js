@@ -5,6 +5,8 @@ import classnames from "classnames";
 import Loading from "./Loading";
 import Panel from "./Panel";
 
+import { setInterview } from "helpers/reducers";
+
 import {
   getTotalInterviews,
   getLeastPopularTimeSlot,
@@ -52,7 +54,7 @@ class Dashboard extends Component {
   //Lifecycle method to check to see if there is a saved focus state after we render the application the first time
   componentDidMount() {
     const focused = JSON.parse(localStorage.getItem("focused"));
-
+    //API request
     Promise.all([
       axios.get("/api/days"),
       axios.get("/api/appointments"),
@@ -66,6 +68,19 @@ class Dashboard extends Component {
       });
     });
 
+    this.socket = new WebSocket(process.env.REACT_APP_WEBSOCKET_URL);
+    //This event handler converts the string data to JavaScript data types. If the data is an object with the correct type, then we update the state. We use a setInterview helper function to convert the state using the id and interview values.
+    //open the connects and starts listening
+    this.socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (typeof data === "object" && data.type === "SET_INTERVIEW") {
+        this.setState((previousState) =>
+          setInterview(previousState, data.id, data.interview)
+        );
+      }
+    };
+
     if (focused) {
       this.setState({ focused });
     }
@@ -76,6 +91,10 @@ class Dashboard extends Component {
     if (previousState.focused !== this.state.focused) {
       localStorage.setItem("focused", JSON.stringify(this.state.focused));
     }
+  }
+
+  componentWillUnmount() {
+    this.socket.close();
   }
 
   render() {
